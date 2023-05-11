@@ -1,6 +1,7 @@
 #include "networking.h"
 
 
+
 int FindSize(char* path)
 {
     FILE* file = fopen(path, "rb");  // Open file for binary read
@@ -16,6 +17,16 @@ int FindSize(char* path)
 
 void FileSplitter(char* filePath, int partition)
 {
+    char** splitedFiles_name = (char**) malloc(partition * sizeof(char*));
+
+    for (int i = 0; i < partition; i++) {
+        char temp[50];
+        sprintf(temp, "output_file_%d", i + 1);
+        splitedFiles_name[i] = (char*) malloc(strlen(temp) + 1);
+        strcpy(splitedFiles_name[i], temp);
+    }
+
+
     FILE* input_file = fopen(filePath, "rb");  // Open input file for binary read
     if (input_file == NULL) {
         printf("Error opening input file.\n");
@@ -56,23 +67,29 @@ int main(int argc, char* argv[]) {
     char* source_path;
     long int chunk_size;
 
-    if (argc < 4) {
-        printf("[-]Not enough arguments.\n");
-        return 1;
-    }
+    // if (argc < 4) {
+    //     printf("[-]Not enough arguments.\n");
+    //     return 1;
+    // }
 
     dest_ip = argv[1];
     source_path = argv[2];
     chunk_size = strtol(argv[3], NULL, 10);
 
+    //=============//
+    source_path = "pdfTest.pdf"; 
+    //=============//
 
+    FILE* selected_file = fopen(source_path, "rb");
+    if (selected_file == NULL) {
+        char temp[1024];
+        strcat(source_path, "/");
+        strcat(source_path, getcwd(temp, sizeof(temp)));
+    }
 
-
-    //--> convert FILE to some splited FILEs
-    FileSplitter("/home/h00man/comp & Tech/OS/multi-threaded-file-transfer-utility/src/pdfTest.pdf", 10);
-
-
-
+    //=============//
+    chunk_size = 7;
+    //=============//
 
 
     //--> using multi-processing to assign each part to a finction
@@ -80,6 +97,8 @@ int main(int argc, char* argv[]) {
 
 
 
+    //--> convert FILE to some splited FILEs
+    FileSplitter(source_path, chunk_size);
 
 
     //--> sending files in each thread

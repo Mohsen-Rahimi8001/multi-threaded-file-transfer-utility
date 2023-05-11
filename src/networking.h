@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #define SIZE 1024
 
