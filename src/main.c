@@ -1,11 +1,7 @@
 #include "networking.h"
 
 
-struct send_file_args{
-    char* dest_ip;
-    int port;
-    char* source_path;
-} myArgs;
+struct send_file_args myArgs;
 
 
 int FindSize(char* path)

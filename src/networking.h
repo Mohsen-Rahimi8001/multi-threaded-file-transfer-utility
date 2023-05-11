@@ -11,6 +11,12 @@
 
 #define SIZE 1024
 
-void send_file(char* ip, int port, char* filepath);
+struct send_file_args{
+    char* dest_ip;
+    int port;
+    char* source_path;
+};
+
+void* send_file(void *arg);
 
 #endif

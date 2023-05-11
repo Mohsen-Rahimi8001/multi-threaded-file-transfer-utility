@@ -1,7 +1,16 @@
 #include "networking.h"
 
  
-void send_file(char* ip, int port, char* filepath) {
+// void *send_file(char* ip, int port, char* filepath) {
+void* send_file(void *arg) {
+    //=================
+    struct send_file_args *args = (struct send_file_args *)arg;
+    char* ip = (char*) args->dest_ip;
+    int port = (int) args->port;
+    char* filepath = (char*) args->source_path;
+    //=================
+
+
     int e;
     int sockfd;
     struct sockaddr_in server_addr;
@@ -46,4 +55,6 @@ void send_file(char* ip, int port, char* filepath) {
     printf("[+]Closing the connection.\n");
     close(sockfd);
     printf("[+]Connection closed successfully.\n");
+
+    pthread_exit(NULL);
 }
