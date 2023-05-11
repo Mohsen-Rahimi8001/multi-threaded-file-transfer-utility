@@ -7,8 +7,13 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#define SIZE 1024
+#define SEND_SIZE 1024
 
-void send_file(char* ip, int port, char* filepath);
+typedef struct {
+    int chunk_num;
+    int socketfd;
+} send_thread_arg;
+
+void send_file(char* ip, int port, char* filepath, int chunks);
 
 #endif

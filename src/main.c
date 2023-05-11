@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
 
     char* dest_ip;
     char* source_path;
-    long int chunk_size;
+    int chunks;
 
     if (argc < 4) {
         printf("[-]Not enough arguments.\n");
@@ -63,16 +63,13 @@ int main(int argc, char* argv[]) {
 
     dest_ip = argv[1];
     source_path = argv[2];
-    chunk_size = strtol(argv[3], NULL, 10);
+    chunks = atoi(argv[3]);
 
 
 
 
     //--> convert FILE to some splited FILEs
-    FileSplitter("/home/h00man/comp & Tech/OS/multi-threaded-file-transfer-utility/src/pdfTest.pdf", 10);
-
-
-
+    FileSplitter(source_path, chunks);
 
 
     //--> using multi-processing to assign each part to a finction
@@ -84,7 +81,7 @@ int main(int argc, char* argv[]) {
 
     //--> sending files in each thread
 
-        // send_file(dest_ip, 8092, source_path);
+    send_file(dest_ip, 10092, source_path, chunks);
 
     return 0;
 }
