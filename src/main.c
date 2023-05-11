@@ -1,6 +1,12 @@
 #include "networking.h"
 
 
+struct send_file_args{
+    char* dest_ip;
+    int port;
+    char* source_path;
+} myArgs;
+
 
 int FindSize(char* path)
 {
@@ -17,6 +23,7 @@ int FindSize(char* path)
 
 void FileSplitter(char* filePath, int partition)
 {
+    pthread_t threads[partition];
     char** splitedFiles_name = (char**) malloc(partition * sizeof(char*));
 
     for (int i = 0; i < partition; i++) {
@@ -57,6 +64,15 @@ void FileSplitter(char* filePath, int partition)
     }
 
     fclose(input_file); 
+
+    for (int i = 0; i < partition; i++) {
+        pthread_create(&threads[i], NULL, send_file, &myArgs);
+    }
+
+    for (int i = 0; i < partition; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
 }
 
 
@@ -67,18 +83,27 @@ int main(int argc, char* argv[]) {
     char* source_path;
     long int chunk_size;
 
-    // if (argc < 4) {
-    //     printf("[-]Not enough arguments.\n");
-    //     return 1;
-    // }
+    if (argc < 4) {
+        printf("[-]Not enough arguments.\n");
+        return 1;
+    }
 
     dest_ip = argv[1];
     source_path = argv[2];
     chunk_size = strtol(argv[3], NULL, 10);
 
-    //=============//
-    source_path = "pdfTest.pdf"; 
-    //=============//
+    
+    myArgs.dest_ip = dest_ip;
+    myArgs.port = 8092;
+    myArgs.source_path = source_path;
+
+
+    // //=============//
+    // source_path = "pdfTest.pdf"; 
+    // //=============//
+    // chunk_size = 7;
+    // //=============//
+
 
     FILE* selected_file = fopen(source_path, "rb");
     if (selected_file == NULL) {
@@ -87,23 +112,14 @@ int main(int argc, char* argv[]) {
         strcat(source_path, getcwd(temp, sizeof(temp)));
     }
 
-    //=============//
-    chunk_size = 7;
-    //=============//
-
 
     //--> using multi-processing to assign each part to a finction
-
 
 
 
     //--> convert FILE to some splited FILEs
     FileSplitter(source_path, chunk_size);
 
-
-    //--> sending files in each thread
-
-        // send_file(dest_ip, 8092, source_path);
 
     return 0;
 }
