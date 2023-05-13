@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
     char* dest_ip;
     char* source_path;
-    long int chunk_size;
+    int chunks;
 
     if (argc < 4) {
         printf("[-]Not enough arguments.\n");
@@ -86,12 +86,13 @@ int main(int argc, char* argv[]) {
 
     dest_ip = argv[1];
     source_path = argv[2];
-    chunk_size = strtol(argv[3], NULL, 10);
+    chunks = atoi(argv[3]);
 
     
-    myArgs.dest_ip = dest_ip;
-    myArgs.port = 8092;
-    myArgs.source_path = source_path;
+//    myArgs.dest_ip = dest_ip;
+//    myArgs.port = 8092;
+//    myArgs.source_path = source_path;
+
 
 
     // //=============//
@@ -110,11 +111,22 @@ int main(int argc, char* argv[]) {
 
 
     //--> using multi-processing to assign each part to a finction
-
-
-
+  
+  
     //--> convert FILE to some splited FILEs
-    FileSplitter(source_path, chunk_size);
+    FileSplitter(source_path, chunks);
+
+
+
+
+
+
+
+
+
+    //--> sending files in each thread
+
+//    send_file(dest_ip, 10092, source_path, chunks);
 
 
     return 0;
