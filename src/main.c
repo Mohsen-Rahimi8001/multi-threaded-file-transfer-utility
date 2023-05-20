@@ -1,7 +1,7 @@
 #include "networking.h"
 
 
-int FindSize(char* path)
+unsigned long int FindSize(char* path)
 {
     FILE* file = fopen(path, "rb");  // Open file for binary read
 
@@ -14,35 +14,41 @@ int FindSize(char* path)
 
 
 
-void FileSplitter(char* filePath, int partition)
+void FileSplitter(char* filePath, int partitions)
 {
-    FILE* input_file = fopen(filePath, "rb");  // Open input file for binary read
+    FILE* input_file = fopen(filePath, "rb"); 
     if (input_file == NULL) {
         printf("Error opening input file.\n");
         exit(1);
     }
 
-    int CHUNK_SIZE = (FindSize(filePath) / partition) + 1 ;  // Chunk size in bytes
-    char buffer[CHUNK_SIZE];  // Buffer for reading input file
+    unsigned long int file_size = FindSize(filePath);
+    unsigned long int CHUNK_SIZE = (file_size / partitions);
+    int BUF_SIZE = CHUNK_SIZE > 2048 ? 1024 : CHUNK_SIZE;
 
-    int chunk_number = 1;  // Number of current output chunk
-    while (!feof(input_file)) {
+    for (int i = 1; i < partitions + 1; ++i) {
+        
+        char buffer[BUF_SIZE];
+
         FILE* output_file;
         char output_file_name[50];
-        sprintf(output_file_name, "output_file_%d", chunk_number);  // Generate output file name
-        output_file = fopen(output_file_name, "wb");  // Open output file for binary write
+        sprintf(output_file_name, "output_file_%d", i);
+        output_file = fopen(output_file_name, "wb");
+        
         if (output_file == NULL) {
-            printf("Error creating output file %d.\n", chunk_number);
+            printf("Error creating output file %d.\n", i);
             exit(1);
         }
-
-        int bytes_read = fread(buffer, 1, CHUNK_SIZE, input_file);  // Read a chunk from input file
-        if (bytes_read > 0) {
-            fwrite(buffer, 1, bytes_read, output_file);  // Write chunk to output file
-            chunk_number++;
+        
+        unsigned long int threashold = CHUNK_SIZE * i + 1;
+        size_t readBytes;
+        
+        while (ftell(input_file) < threashold &&
+         (readBytes = fread(buffer, 1, BUF_SIZE, input_file)) > 0) {
+            fwrite(buffer, 1, readBytes, output_file);            
         }
 
-        fclose(output_file); 
+        fclose(output_file);
     }
 
     fclose(input_file); 
@@ -81,7 +87,7 @@ int main(int argc, char* argv[]) {
 
     //--> sending files in each thread
 
-    send_file(dest_ip, 10092, source_path, chunks);
+    send_file(dest_ip, 10080, source_path, chunks);
 
     return 0;
 }

@@ -3,8 +3,6 @@
 
 #define FILE_NAME_LEN 50
 
-pthread_mutex_t mutex_send_lock;
-
 void *send_chunk(void *arg) {
     send_thread_arg args = *(send_thread_arg *)arg;
     
@@ -20,22 +18,33 @@ void *send_chunk(void *arg) {
     }
     
     size_t bytes_read;
-    char data[SEND_SIZE] = {0};
+    char data[CONTENT_SIZE] = {0};
+    
+    char number[10];
+    sprintf(number, "%d", args.chunk_num);
 
-    while(fgets(data, SEND_SIZE, fp) != NULL) {
+    while((bytes_read = fread(data, 1, CONTENT_SIZE, fp)) > 0) {
+
+        size_t toSendLength = bytes_read + HEADER_SIZE;        
+        char num[HEADER_SIZE];
+
+        sprintf(num, "%d|%ld", args.chunk_num, toSendLength);
         
-        char* to_send = malloc(SEND_SIZE + sizeof(char) * 50);
-        sprintf(to_send, "%d@", args.chunk_num);
-        strcat(to_send, data);
+        char* toSend = (char*)malloc(toSendLength + 1);
 
-        if (send(args.socketfd, to_send, SEND_SIZE + sizeof(char) * 50, 0) == -1) {
+        memcpy(toSend, num, HEADER_SIZE);
+        
+        memcpy(toSend + HEADER_SIZE, data, bytes_read);
+        
+        toSend[toSendLength] = '\0';
+
+        if (send(args.socketfd, toSend, BUFFER_SIZE, 0) == -1) {
             perror("[-]Error in sending file.");
         }
 
-        free(to_send);
-        memset(data, 0, SEND_SIZE); 
+        free(toSend);
+        memset(data, 0, CONTENT_SIZE);
     }
-
 
     fclose(fp);
     printf("The file of the thread %d is sent succesfully\n", args.chunk_num);
@@ -70,13 +79,13 @@ void send_file(char* ip, int port, char* filepath, int chunks) {
     }
     printf("[+]Connected to Server.\n");
 
-    fp = fopen(filepath, "r");
+    fp = fopen(filepath, "rb");
     if (fp == NULL) {
         perror("[-]Error in reading file.");
         exit(1);
     }
 
-    char msg[120];
+    char msg[BUFFER_SIZE];
     char filename[100];
 
     char* token = strtok(filepath, "/");
@@ -86,14 +95,31 @@ void send_file(char* ip, int port, char* filepath, int chunks) {
         token = strtok(NULL, "/");
     }
 
-    strcpy(msg, "FILEPATH@");
-    strcat(msg, filename);
+    memcpy(msg, "FILEPATH", HEADER_SIZE);
+    memcpy(msg + HEADER_SIZE, filename, CONTENT_SIZE);
 
-    if (send(sockfd, msg, sizeof(msg), 0) == -1) {
-        perror("[-]Error in sending the number of chunks.");
+    msg[BUFFER_SIZE] = '\0';
+
+    if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
+        perror("[-]Error in sending destination path.");
         exit(1);
     }
 
+    memset(msg, 0, sizeof(msg));
+        
+
+    char num[CONTENT_SIZE];
+    sprintf(num, "%d", chunks);
+
+    memcpy(msg, "CHUNKS", HEADER_SIZE);
+    memcpy(msg + HEADER_SIZE, num, CONTENT_SIZE);
+
+    msg[BUFFER_SIZE] = '\0';
+
+    if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
+        perror("[-]Error in sending the number of chunks.");
+        exit(1);
+    }
 
     pthread_t th[chunks];
     for (int i = 0; i < chunks; i++) {
@@ -115,9 +141,13 @@ void send_file(char* ip, int port, char* filepath, int chunks) {
         free(result);
     }
 
-    char *done_msg = "DONE@";
+    memset(msg, 0, BUFFER_SIZE);
 
-    if (send(sockfd, done_msg, strlen(done_msg), 0) != strlen(done_msg)) {
+    memcpy(msg, "DONE", HEADER_SIZE);
+
+    msg[HEADER_SIZE] = '\0';
+
+    if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         fprintf(stderr, "Error sending DONE message to server\n");
         exit(1);
     }
