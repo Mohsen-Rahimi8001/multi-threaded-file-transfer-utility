@@ -40,7 +40,7 @@ void FileSplitter(char* filePath, int partitions)
             exit(1);
         }
         
-        unsigned long int threashold = CHUNK_SIZE * i + 1;
+        long int threashold = CHUNK_SIZE * i + 1;
         size_t readBytes;
         
         while (ftell(input_file) < threashold &&
