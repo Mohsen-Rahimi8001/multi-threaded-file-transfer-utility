@@ -98,8 +98,6 @@ void send_file(char* ip, int port, char* filepath, int chunks) {
     memcpy(msg, "FILEPATH", HEADER_SIZE);
     memcpy(msg + HEADER_SIZE, filename, CONTENT_SIZE);
 
-    msg[BUFFER_SIZE] = '\0';
-
     if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         perror("[-]Error in sending destination path.");
         exit(1);
@@ -113,8 +111,6 @@ void send_file(char* ip, int port, char* filepath, int chunks) {
 
     memcpy(msg, "CHUNKS", HEADER_SIZE);
     memcpy(msg + HEADER_SIZE, num, CONTENT_SIZE);
-
-    msg[BUFFER_SIZE] = '\0';
 
     if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         perror("[-]Error in sending the number of chunks.");
