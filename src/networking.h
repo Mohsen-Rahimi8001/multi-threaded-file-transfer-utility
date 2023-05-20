@@ -7,7 +7,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#define SEND_SIZE 1024
+#define BUFFER_SIZE 1024
+#define HEADER_SIZE 124
+#define CONTENT_SIZE 900
 
 typedef struct {
     int chunk_num;
