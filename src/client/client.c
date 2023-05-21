@@ -180,7 +180,9 @@ void *send_chunk(void *arg) {
 }
 
 
-void send_file(int sockfd, char* filepath, int chunks) {
+void send_file(int sockfd, char* filepath, int chunks) 
+{
+    printf("> send file > %s\n", filepath);
     FILE *fp;
     fp = fopen(filepath, "rb");
     if (fp == NULL) {
@@ -313,38 +315,65 @@ int main(int argc, char* argv[])
         // need speed test file (name: SpeedTester)
     }
 
+
+    else if (hasChunks && strcmp(argv[2],"-r") != 0)
+    {
+        printf("> Partition 3\n");
+        source_path = argv[2];
+        FileSplitter(source_path, chunks);
+        send_file(sockfd, source_path, chunks);
+
+        printf("[+]File data sent successfully.\n");
+        printf("[+]Closing the connection.\n");
+        close(sockfd);
+        printf("[+]Connection closed successfully.\n");
+        system("rm output_file_*");
+        return 0;
+    }
+
+
     else if (hasChunks && strcmp(argv[2],"-r") == 0)
     {
         printf("> Partition 2\n");
         int forkNum = 0;
         while(strcmp(argv[3 + forkNum ],"-c") != 0 && 8 >= (4 + forkNum))
             forkNum++;
+        printf("> forkNum: %d\n", forkNum);
 
-        int forkCounter = 0;
-        // pid_t pid[logarithm(forkNum)];
-        for (int i = 0 ; i < logarithm(forkNum); i++)
+        pid_t pid[forkNum];
+        for (int i = 0 ; i < forkNum ; i++)
         {
-            while (forkCounter < forkNum)
+            pid[i] = fork();
+
+            if (pid[i] < 0){
+                printf("[-]Files does not splitted correctly.\n");
+                return (1);
+            }
+            else if (pid[i] == 0)
             {
-                // pid[i] = fork();
-                fork();
-
-                source_path = argv[3 + forkCounter++];
+                source_path = argv[3 + i];
+                printf("> pid: %p > src: %s\n", &pid[i], source_path);
                 FileSplitter(source_path, chunks);
-
                 send_file(sockfd, source_path, chunks);
             }
+            else
+            {
+                int status;
+                wait(&status);
+                // int status;
+                // waitpid(pid, &status, 0);
+
+                if (i == 0 && pid[i] > 0){
+                    printf("> in GodFather!\n");
+                    printf("[+]File data sent successfully.\n");
+                    printf("[+]Closing the connection.\n");
+                    close(sockfd);
+                    printf("[+]Connection closed successfully.\n");
+                    system("rm output_file_*");
+                    return 0;
+                }
+            }
         }
-    }
-
-    else if (hasChunks)
-    {
-        printf("> Partition 3\n");
-        source_path = argv[2];
-
-        FileSplitter(source_path, chunks);
-
-        send_file(sockfd, source_path, chunks);
     }
 
     else 
@@ -353,15 +382,5 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-
-    printf("[+]File data sent successfully.\n");
-    printf("[+]Closing the connection.\n");
-    close(sockfd);
-    printf("[+]Connection closed successfully.\n");
-
-    
-    system("rm output_file_*");
-
     return 0;
-
 }
