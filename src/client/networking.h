@@ -6,6 +6,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <math.h>
+#include <stdbool.h>
+#include <ctype.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 #define BUFFER_SIZE 1024
 #define HEADER_SIZE 124
@@ -16,6 +22,6 @@ typedef struct {
     int socketfd;
 } send_thread_arg;
 
-void send_file(char* ip, int port, char* filepath, int chunks);
+void send_file(int sockfd, char* filepath, int chunks);
 
 #endif
