@@ -3,7 +3,7 @@
 
 
 #define FILE_NAME_LEN 50
-#define PORT 10092
+#define PORT 10080
 
 
 unsigned long int FindSize(char* path)
