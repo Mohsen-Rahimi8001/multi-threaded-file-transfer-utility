@@ -24,6 +24,17 @@ typedef struct {
     char* filename;
 } send_thread_arg;
 
+char* GetFileName(char* filepath) {
+    char* filename = malloc(sizeof(char) * 100);
+    char* token = strtok(filepath, "/");
+
+    while (token != NULL) {
+        strcpy(filename, token);
+        token = strtok(NULL, "/");
+    }
+
+    return filename;
+}
 
 unsigned long int FindSize(char* path)
 {
@@ -37,7 +48,7 @@ unsigned long int FindSize(char* path)
 }
 
 
-void FileSplitter(char* filePath, int partitions, int filename)
+void FileSplitter(char* filePath, int partitions, char* filename)
 {
     FILE* input_file = fopen(filePath, "rb"); 
     if (input_file == NULL) {
@@ -53,7 +64,7 @@ void FileSplitter(char* filePath, int partitions, int filename)
 
         FILE* output_file;
         char output_file_name[50];
-        sprintf(output_file_name, "output_file_%d_%d", filename, i);
+        sprintf(output_file_name, "%s_%d", filename, i);
         output_file = fopen(output_file_name, "wb");
         
         if (output_file == NULL) {
@@ -134,7 +145,7 @@ void *send_chunk(void *arg) {
     free(arg);
 
     char filename[FILE_NAME_LEN];
-    sprintf(filename, "output_file_%d", args.chunk_num);
+    sprintf(filename, "%s_%d", args.filename, args.chunk_num);
 
     FILE *fp = fopen(filename, "rb");
     if (fp == NULL) {
@@ -153,7 +164,7 @@ void *send_chunk(void *arg) {
         size_t toSendLength = bytes_read + HEADER_SIZE;        
         char num[HEADER_SIZE];
 
-        sprintf(num, "%s|%d|%ld", args.filename, args.chunk_num, toSendLength);
+        sprintf(num, "WRITE|%s|%d|%ld", args.filename, args.chunk_num, toSendLength);
         
         char* toSend = (char*)malloc(toSendLength + 1);
 
@@ -192,14 +203,7 @@ void send_file(int sockfd, char* filepath, int chunks)
     }
 
     char msg[BUFFER_SIZE];
-    char filename[100];
-
-    char* token = strtok(filepath, "/");
-
-    while (token != NULL) {
-        strcpy(filename, token);
-        token = strtok(NULL, "/");
-    }
+    char* filename = GetFileName(filepath);
 
     char num[CONTENT_SIZE];
     sprintf(num, "%d", chunks);
@@ -237,10 +241,8 @@ void send_file(int sockfd, char* filepath, int chunks)
 
     memset(msg, 0, BUFFER_SIZE);
 
-    memcpy(msg, "DONE", HEADER_SIZE);
-
-    msg[HEADER_SIZE] = '\0';
-
+    sprintf(msg, "DONE|%s", filename);
+    printf("sending the done message");
     if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         fprintf(stderr, "Error sending DONE message to server\n");
         exit(1);
@@ -308,15 +310,24 @@ int main(int argc, char* argv[])
     else if (hasChunks && strcmp(argv[2],"-r") != 0)
     {
         printf("> Partition 3\n");
-        source_path = argv[2];
-        FileSplitter(source_path, chunks, 0);
+        source_path = argv[2];        
+        char* filename = GetFileName(source_path);
+
+        FileSplitter(source_path, chunks, filename);
         send_file(sockfd, source_path, chunks);
 
         printf("[+]File data sent successfully.\n");
         printf("[+]Closing the connection.\n");
         close(sockfd);
         printf("[+]Connection closed successfully.\n");
-        system("rm output_file_0_*");
+
+        char command[255];
+        sprintf(command, "rm %s_*", filename);
+        
+        if (system(command) < 0) {
+            perror("[-]Error in deleting chunk files");
+        }
+
         return 0;
     }
 
@@ -354,11 +365,12 @@ int main(int argc, char* argv[])
             {
                 source_path = argv[3 + i];
                 printf("> pid: %p > src: %s\n", &pid[i], source_path);
-                FileSplitter(source_path, chunks, i);
+                char* filename = GetFileName(source_path);
+                FileSplitter(source_path, chunks, filename);
                 send_file(sockfd, source_path, chunks);
                 
-                char command[50];
-                sprintf(command, "rm output_file_%d_*", i);
+                char command[255];
+                sprintf(command, "rm %s_*", filename);
                 system(command);
             }
             else

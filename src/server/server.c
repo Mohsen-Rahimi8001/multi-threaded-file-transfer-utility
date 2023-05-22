@@ -8,8 +8,7 @@
 #define CONTENT_SIZE 900
 #define HEADER_SIZE 124
 
-int filecount;
-char filepath[255];
+int filecount = -1;
 int chunks = -1;
 
 enum COMMAND_TYPE {
@@ -22,6 +21,9 @@ typedef struct {
     int sockfd;
     int file_number;
 } write_file_args;
+
+int command_handler(char*);
+int merge(char*);
 
 int is_digit(char* string) {
     if (string == NULL || !strcmp(string, "")) return 0;
@@ -42,22 +44,30 @@ int command_handler(char* string) {
 
     char* token = strtok(string, "|");
 
-    if (!strcmp(command, "FILEPATH")) {
-        strcpy(filepath, content);
-        printf("Destination path: %s\n", filepath);
-    
-    } else if (!strcmp(command, "FILECOUNT")) {
+    if (!strcmp(command, "FILECOUNT")) {
         filecount = atoi(content);
         printf("Number of files is: %d\n", filecount);
 
-    } else if (is_digit(token)) {
+    } else if (!strcmp(token, "WRITE")) {
+        token = strtok(NULL, "|");
+
+        char filename[100];
+        strcpy(filename, token);
+
+        strcat(filename, "_");
+
+        token = strtok(NULL, "|");
+
+        strcat(filename, token);
+
 		FILE* fp;
-        fp = fopen(token, "ab");
+        fp = fopen(filename, "ab");
 
         if (fp == NULL) {
 			perror("[-]Error opening new file.");
             return SEND_AGAIN;
         }
+
         token = strtok(NULL, "|");
         char* endptr;
 
@@ -67,8 +77,16 @@ int command_handler(char* string) {
 
         fclose(fp);
 
-    } else if (!strcmp(command, "DONE")) {
+    } else if (!strcmp(token, "DONE")) {
+        token = strtok(NULL, "|");
+
+        if (!merge(token)) {
+		    perror("[-]Error in merging.");
+            return SEND_AGAIN;
+        }
+
         return DONE;
+
     } else if (!strcmp(command, "CHUNKS")) {
 		chunks = atoi(content);
 		printf("Chunks: %d\n", chunks);
@@ -83,7 +101,7 @@ void close_fp(FILE* fp) {
     }
 }
 
-int merge() {
+int merge(char* filepath) {
 	if (chunks < 0) {
 		return 0;
 	} 
@@ -97,8 +115,10 @@ int merge() {
 	}	
 
 	for (int i = 1; i < chunks + 1; ++i) {
-		char filename[5];
-		sprintf(filename, "%d", i);
+
+        char filename[100];
+        sprintf(filename, "%s_%d", filepath, i);
+        
 		FILE* chunk_fp = fopen(filename, "rb");
 		if (chunk_fp == NULL) {
             printf("error in chunk %d\n", i);
@@ -114,9 +134,10 @@ int merge() {
         }
 
         fclose(chunk_fp);
-        char del_command[20];
+        char del_command[255];
         strcpy(del_command, "rm ");
         strcat(del_command, filename);
+
         int r = system(del_command);
         if (r < 0) {
             perror("[-]Error deleting a chunk file");
@@ -168,14 +189,14 @@ int main() {
     char buffer[SIZE];
     int res;
 
-    while (1) {
+    while (filecount) {
         if (read(client_sock, buffer, SIZE) > 0) {
 
             res = command_handler(buffer);
 
             if (res == DONE) {
                 printf("got the done message.\n");
-                break;
+                filecount--;
             } else if (res == SEND_AGAIN) {
             }
 
@@ -189,11 +210,6 @@ int main() {
     }
 
     close(client_sock);
-
-	if (!merge()) {
-		perror("[-]Error in merging.");
-		exit(1);
-	}
 
     printf("[+]Data written in the file successfully.\n");
 
