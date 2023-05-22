@@ -21,6 +21,7 @@
 typedef struct {
     int chunk_num;
     int socketfd;
+    char* filename;
 } send_thread_arg;
 
 
@@ -36,7 +37,7 @@ unsigned long int FindSize(char* path)
 }
 
 
-void FileSplitter(char* filePath, int partitions)
+void FileSplitter(char* filePath, int partitions, int filename)
 {
     FILE* input_file = fopen(filePath, "rb"); 
     if (input_file == NULL) {
@@ -52,7 +53,7 @@ void FileSplitter(char* filePath, int partitions)
 
         FILE* output_file;
         char output_file_name[50];
-        sprintf(output_file_name, "output_file_%d", i);
+        sprintf(output_file_name, "output_file_%d_%d", filename, i);
         output_file = fopen(output_file_name, "wb");
         
         if (output_file == NULL) {
@@ -152,7 +153,7 @@ void *send_chunk(void *arg) {
         size_t toSendLength = bytes_read + HEADER_SIZE;        
         char num[HEADER_SIZE];
 
-        sprintf(num, "%d|%ld", args.chunk_num, toSendLength);
+        sprintf(num, "%s|%d|%ld", args.filename, args.chunk_num, toSendLength);
         
         char* toSend = (char*)malloc(toSendLength + 1);
 
@@ -200,19 +201,6 @@ void send_file(int sockfd, char* filepath, int chunks)
         token = strtok(NULL, "/");
     }
 
-    memcpy(msg, "FILEPATH", HEADER_SIZE);
-    memcpy(msg + HEADER_SIZE, filename, CONTENT_SIZE);
-
-    msg[BUFFER_SIZE] = '\0';
-
-    if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
-        perror("[-]Error in sending destination path.");
-        exit(1);
-    }
-
-    memset(msg, 0, sizeof(msg));
-        
-
     char num[CONTENT_SIZE];
     sprintf(num, "%d", chunks);
 
@@ -231,6 +219,7 @@ void send_file(int sockfd, char* filepath, int chunks)
         send_thread_arg* arg = malloc(sizeof(send_thread_arg*));
         arg->chunk_num = i + 1;
         arg->socketfd = sockfd;
+        arg->filename = filename;
         if (pthread_create(th+i, NULL, send_chunk, (void*)arg) != 0) {
             perror("[-]Error creating new thread.");
         }
@@ -320,14 +309,14 @@ int main(int argc, char* argv[])
     {
         printf("> Partition 3\n");
         source_path = argv[2];
-        FileSplitter(source_path, chunks);
+        FileSplitter(source_path, chunks, 0);
         send_file(sockfd, source_path, chunks);
 
         printf("[+]File data sent successfully.\n");
         printf("[+]Closing the connection.\n");
         close(sockfd);
         printf("[+]Connection closed successfully.\n");
-        system("rm output_file_*");
+        system("rm output_file_0_*");
         return 0;
     }
 
@@ -338,6 +327,18 @@ int main(int argc, char* argv[])
         int forkNum = 0;
         while(strcmp(argv[3 + forkNum ],"-c") != 0 && 8 >= (4 + forkNum))
             forkNum++;
+
+        char buffer[1024];
+        char forkNumStr[CONTENT_SIZE];
+        sprintf(forkNumStr, "%d", forkNum);
+
+        memcpy(buffer, "FILECOUNT", HEADER_SIZE);
+        memcpy(buffer + HEADER_SIZE, forkNumStr, CONTENT_SIZE);
+
+        if (send(sockfd, buffer, BUFFER_SIZE, 0) == -1) {
+            perror("[-]Error in sending number of files");
+        }
+
         printf("> forkNum: %d\n", forkNum);
 
         pid_t pid[forkNum];
@@ -353,23 +354,25 @@ int main(int argc, char* argv[])
             {
                 source_path = argv[3 + i];
                 printf("> pid: %p > src: %s\n", &pid[i], source_path);
-                FileSplitter(source_path, chunks);
+                FileSplitter(source_path, chunks, i);
                 send_file(sockfd, source_path, chunks);
+                
+                char command[50];
+                sprintf(command, "rm output_file_%d_*", i);
+                system(command);
             }
             else
             {
                 int status;
                 wait(&status);
-                // int status;
-                // waitpid(pid, &status, 0);
-
-                if (i == 0 && pid[i] > 0){
+                
+                if ( WIFEXITED(status) && i == 0 && pid[i] > 0)
+                {
                     printf("> in GodFather!\n");
                     printf("[+]File data sent successfully.\n");
                     printf("[+]Closing the connection.\n");
                     close(sockfd);
                     printf("[+]Connection closed successfully.\n");
-                    system("rm output_file_*");
                     return 0;
                 }
             }

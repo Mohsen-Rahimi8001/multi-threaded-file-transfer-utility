@@ -8,6 +8,7 @@
 #define CONTENT_SIZE 900
 #define HEADER_SIZE 124
 
+int filecount;
 char filepath[255];
 int chunks = -1;
 
@@ -44,6 +45,11 @@ int command_handler(char* string) {
     if (!strcmp(command, "FILEPATH")) {
         strcpy(filepath, content);
         printf("Destination path: %s\n", filepath);
+    
+    } else if (!strcmp(command, "FILECOUNT")) {
+        filecount = atoi(content);
+        printf("Number of files is: %d\n", filecount);
+
     } else if (is_digit(token)) {
 		FILE* fp;
         fp = fopen(token, "ab");
