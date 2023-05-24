@@ -1,0 +1,23 @@
+multithreadedfiletransfer: copying files using destination IP
+
+Usage: multithreadedfiletransfer <IP> <file_path>
+   or: multithreadedfiletransfer <IP> -r ...<files_path>... 
+   or: multithreadedfiletransfer <IP> <file_path> -c <chunk>
+   or: multithreadedfiletransfer <IP> -r ...<files_path>... -c <chunk>
+   
+Copy source file(s) to the destination ip with multi-threads as fast as possible and using multi-peocessing for different files.
+
+commands:
+  -r, --recursive	    copy all of the following files
+  			    can be ignored for one file
+  
+  -c, --count	    	    number of threads
+  			    else calculate the best thread number and set
+
+  -h, --help                display this help and exit
+
+example:
+	multithreadedfiletransfer 127.0.0.1 file1 
+	multithreadedfiletransfer 192.168.0.1 -r file1 file2 -c 8
+
+  
