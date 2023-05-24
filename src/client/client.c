@@ -9,13 +9,14 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <float.h>
 
 
 #define BUFFER_SIZE 1024
 #define HEADER_SIZE 124
 #define CONTENT_SIZE 900
 #define FILE_NAME_LEN 50
-#define PORT 10080
+#define PORT 10087
 
 
 typedef struct {
@@ -242,13 +243,28 @@ void send_file(int sockfd, char* filepath, int chunks)
     memset(msg, 0, BUFFER_SIZE);
 
     sprintf(msg, "DONE|%s", filename);
-    printf("sending the done message");
+    printf("sending the done message\n");
     if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         fprintf(stderr, "Error sending DONE message to server\n");
         exit(1);
     }
 }
 
+int send_file_count(int sockfd, int filecount) {
+    char buffer[1024];
+    char fileCountStr[CONTENT_SIZE];
+    sprintf(fileCountStr, "%d", filecount);
+
+    memcpy(buffer, "FILECOUNT", HEADER_SIZE);
+    memcpy(buffer + HEADER_SIZE, fileCountStr, CONTENT_SIZE);
+
+    if (send(sockfd, buffer, BUFFER_SIZE, 0) == -1) {
+        perror("[-]Error in sending number of files");
+        return -1;
+    }
+
+    return 0;
+}
 
 int main(int argc, char* argv[]) 
 {
@@ -272,44 +288,91 @@ int main(int argc, char* argv[])
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd < 0) {
-        perror("[-]Error in socket");
+        perror("[-]Error in client socketfd");
         exit(1);
     }
     printf("[+]Client socket created successfully.\n");
 
     server_addr.sin_addr.s_addr = inet_addr(dest_ip);
-    server_addr.sin_port =PORT;
+    server_addr.sin_port = PORT;
     server_addr.sin_family = AF_INET;
     
     int e = connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if(e == -1) {
-        perror("[-]Error in socket");
+        perror("[-]Error in socket connection");
         exit(1);
     }
     printf("[+]Connected to Server.\n");
 
     bool hasChunks;
-    if (isNumeric(argv[argc - 1])){
-        hasChunks = true;
-        chunks = atoi(argv[argc - 1]);
-    }
-    else{
+    if (strcmp(argv[argc - 2],"-c") == 0)
+        if (isNumeric(argv[argc - 1])) {
+            hasChunks = true;
+            chunks = atoi(argv[argc - 1]);
+        }
+        else {
+            printf("[-]Invalid chunck number\n");
+            exit(1);  
+            }
+    else {
         hasChunks = false;
     }
 
     printf("> has -c: %d\n", hasChunks);
     printf("> chunks: %d\n", chunks);
+    
+    int number_of_files = 0;
+    if (!hasChunks) number_of_files += 9;
+    if (strcmp(argv[2],"-r") != 0) number_of_files++;
+    else number_of_files += hasChunks ? argc - 5 : argc - 3;
+
+    send_file_count(sockfd, number_of_files);
 
     if (!hasChunks){
         printf("> Partition 1\n");
         // now should test that how many chuncks can have the best speed...
         // need speed test file (name: SpeedTester)
+
+        source_path = "xSPEEDTEST";
+        FILE* ftestp = fopen(source_path, "w");
+        for (int i = 0; i < 100000; ++i) {
+            fputc('#', ftestp);
+        }
+        fclose(ftestp);
+
+        int speedtestChunks[] = {1,2,4,8,16,24,32,45,64};
+        double min = DBL_MAX;
+        int min_ind = -1;
+        for (int speed = 0 ; speed < 9 ; speed++)
+        {
+            clock_t start = clock();
+
+            FileSplitter(source_path, speedtestChunks[speed], source_path);
+
+            send_file(sockfd, source_path, speedtestChunks[speed]);
+
+            clock_t end = clock();
+            double elapsed_time = (double)(end - start) / CLOCKS_PER_SEC;
+
+            if (elapsed_time < min) {
+                min = elapsed_time;
+                min_ind = speed;
+            }
+        }
+
+        chunks = speedtestChunks[min_ind];
+        
+        char command[50];
+        sprintf(command, "rm %s*", source_path);
+        if (system(command) < 0) {
+            perror("[-]Failed to remove SPEEDTEST chunk files.");
+        }
     }
 
 
-    else if (hasChunks && strcmp(argv[2],"-r") != 0)
+    if (strcmp(argv[2],"-r") != 0)
     {
-        printf("> Partition 3\n");
+        printf("> Partition 2\n");
         source_path = argv[2];        
         char* filename = GetFileName(source_path);
 
@@ -332,23 +395,14 @@ int main(int argc, char* argv[])
     }
 
 
-    else if (hasChunks && strcmp(argv[2],"-r") == 0)
+    else if (strcmp(argv[2],"-r") == 0)
     {
-        printf("> Partition 2\n");
-        int forkNum = 0;
-        while(strcmp(argv[3 + forkNum ],"-c") != 0 && 8 >= (4 + forkNum))
-            forkNum++;
+        printf("> Partition 3\n");
+        printf("final chunks: %d\n", chunks);
 
-        char buffer[1024];
-        char forkNumStr[CONTENT_SIZE];
-        sprintf(forkNumStr, "%d", forkNum);
+        int forkNum = hasChunks ? number_of_files : number_of_files - 9;
 
-        memcpy(buffer, "FILECOUNT", HEADER_SIZE);
-        memcpy(buffer + HEADER_SIZE, forkNumStr, CONTENT_SIZE);
-
-        if (send(sockfd, buffer, BUFFER_SIZE, 0) == -1) {
-            perror("[-]Error in sending number of files");
-        }
+        printf("> FORKNUM: %d\n", forkNum);
 
         printf("> forkNum: %d\n", forkNum);
 

@@ -80,6 +80,8 @@ int command_handler(char* string) {
     } else if (!strcmp(token, "DONE")) {
         token = strtok(NULL, "|");
 
+        system("ls");
+
         if (!merge(token)) {
 		    perror("[-]Error in merging.");
             return SEND_AGAIN;
@@ -151,7 +153,7 @@ int merge(char* filepath) {
 
 int main() {
     char* ip = "127.0.0.1";
-    int port = 10080;
+    int port = 10087;
 
     int sockfd, client_sock;
     struct sockaddr_in server_addr, client_addr;
@@ -159,7 +161,7 @@ int main() {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        perror("[-]Error in socket");
+        perror("[-]Error in server socketfd");
         exit(1);
     }
     printf("[+]Server socket created successfully.\n");
@@ -188,9 +190,14 @@ int main() {
 
     char buffer[SIZE];
     int res;
-
+    size_t read_size;
     while (filecount) {
-        if (read(client_sock, buffer, SIZE) > 0) {
+        
+        if ((read_size=read(client_sock, buffer, SIZE)) > 0) {
+            
+            while (read_size < 1024) {
+                read_size += read(client_sock, buffer + read_size, SIZE - read_size);
+            }
 
             res = command_handler(buffer);
 
