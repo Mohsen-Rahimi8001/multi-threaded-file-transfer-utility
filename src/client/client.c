@@ -280,6 +280,13 @@ int main(int argc, char* argv[])
 {
     pthread_mutex_init(&mutex_send, NULL);
 
+    if (argc == 2 && (strcmp(argv[1],"-h") == 0 || strcmp(argv[1],"--help") ==0)){
+        system("cat ../help.txt");
+        // system("cat \"$(whereis multithreadedfiletransfer.out)../help.txt\"");
+
+        exit(0);
+    }
+
     if (argc < 3) {
         printf("[-]Not enough arguments.\n");
         return 1;
@@ -312,7 +319,7 @@ int main(int argc, char* argv[])
     printf("[+]Connected to Server.\n");
 
     bool hasChunks;
-    if (strcmp(argv[argc - 2],"-c") == 0)
+    if (strcmp(argv[argc - 2],"-c") == 0 || strcmp(argv[argc - 2],"--count") == 0)
         if (isNumeric(argv[argc - 1])) {
             hasChunks = true;
             chunks = atoi(argv[argc - 1]);
@@ -328,7 +335,7 @@ int main(int argc, char* argv[])
     
     int number_of_files = 0;
     if (!hasChunks) number_of_files += 9;
-    if (strcmp(argv[2],"-r") != 0) number_of_files++;
+    if (strcmp(argv[2],"-r") != 0 || strcmp(argv[2],"--recursive") != 0) number_of_files++;
     else number_of_files += hasChunks ? argc - 5 : argc - 3;
 
     send_file_count(sockfd, number_of_files);
@@ -376,7 +383,7 @@ int main(int argc, char* argv[])
     }
 
 
-    if (strcmp(argv[2],"-r") != 0)
+    if (strcmp(argv[2],"-r") != 0 || strcmp(argv[2],"--recursive") != 0)
     {
 
         source_path = argv[2];        
@@ -401,7 +408,7 @@ int main(int argc, char* argv[])
     }
 
 
-    else if (strcmp(argv[2],"-r") == 0)
+    else if (strcmp(argv[2],"-r") == 0 || strcmp(argv[2],"--recursive") == 0)
     {
         int forkNum = hasChunks ? number_of_files : number_of_files - 9;
 
