@@ -45,12 +45,9 @@ int command_handler(char* string) {
     char* token = strtok(string, "|");
     
     if (strlen(command) == 0 ) {
-        printf("here is the problem\n");
         return SEND_AGAIN;
     }
-    
-    printf("command: %s\n", command);
- 
+     
     if (!strcmp(command, "FILECOUNT")) {
         filecount = atoi(content);
         printf("Number of files is: %d\n", filecount);
@@ -69,7 +66,7 @@ int command_handler(char* string) {
 
 		FILE* fp;
         fp = fopen(filename, "ab");
-        printf("filename: %s\n", filename);
+
         if (fp == NULL) {
 			perror("[-]Error opening new file.");
             return SEND_AGAIN;
@@ -83,15 +80,15 @@ int command_handler(char* string) {
 		fwrite(content, 1, LEN - HEADER_SIZE, fp);
 
         fclose(fp);
-        printf("wrote a chunk\n");
 
     } else if (!strcmp(token, "DONE")) {
         token = strtok(NULL, "|");
-        system("ls");
+
         printf("merging...\n");
+        
         if (!merge(token)) {
 		    perror("[-]Error in merging.");
-            return SEND_AGAIN;
+            return -1;
         }
 
         return DONE;
@@ -205,11 +202,10 @@ int main() {
                 read_size += read(client_sock, buffer + read_size, SIZE - read_size);
             }
 
-            printf("read %ld bytes\n", read_size);
             res = command_handler(buffer);
 
             if (res == DONE) {
-                printf("Got the done message.\n");
+                printf("Got a done message.\n");
                 filecount--;
             } else if (res == SEND_AGAIN) {                
                 if (send(client_sock, "SEND_AGAIN", SIZE, 0) == -1) {

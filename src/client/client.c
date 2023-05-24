@@ -151,8 +151,6 @@ void *send_chunk(void *arg) {
         
         char* toSend = (char*)malloc(toSendLength + 1);
         
-        printf("this is the header: %s\n", num);
-
         memcpy(toSend, num, HEADER_SIZE);
         
         memcpy(toSend + HEADER_SIZE, data, bytes_read);
@@ -177,7 +175,7 @@ void *send_chunk(void *arg) {
                 
                 while (currentPosition == -1) {
                     printf("Failed to get the current position.\n");
-                    long currentPosition = ftell(fp);
+                    currentPosition = ftell(fp);
                 }
 
                 long newPosition = currentPosition - CONTENT_SIZE;
@@ -206,7 +204,7 @@ void *send_chunk(void *arg) {
 
 void send_file(int sockfd, char* filepath, int chunks) 
 {
-    printf("> send file > %s\n", filepath);
+
     FILE *fp;
     fp = fopen(filepath, "rb");
     if (fp == NULL) {
@@ -281,9 +279,6 @@ int send_file_count(int sockfd, int filecount) {
 int main(int argc, char* argv[]) 
 {
     pthread_mutex_init(&mutex_send, NULL);
-    printf("> argc: %d\n", argc);
-    // command:
-    // ./main 127.0.0.1 -r pat patt pattt -c 10
 
     if (argc < 3) {
         printf("[-]Not enough arguments.\n");
@@ -291,7 +286,6 @@ int main(int argc, char* argv[])
     }
 
     char* dest_ip = argv[1];
-    printf("> ip: %s\n", dest_ip);
 
     char* source_path;
     int chunks = -1;
@@ -331,8 +325,6 @@ int main(int argc, char* argv[])
         hasChunks = false;
     }
 
-    printf("> has -c: %d\n", hasChunks);
-    printf("> chunks: %d\n", chunks);
     
     int number_of_files = 0;
     if (!hasChunks) number_of_files += 9;
@@ -342,7 +334,6 @@ int main(int argc, char* argv[])
     send_file_count(sockfd, number_of_files);
 
     if (!hasChunks){
-        printf("> Partition 1\n");
         // now should test that how many chuncks can have the best speed...
         // need speed test file (name: SpeedTester)
 
@@ -375,6 +366,8 @@ int main(int argc, char* argv[])
 
         chunks = speedtestChunks[min_ind];
         
+        printf("Efficient chunks: %d\n", chunks);
+
         char command[50];
         sprintf(command, "rm %s*", source_path);
         if (system(command) < 0) {
@@ -385,7 +378,7 @@ int main(int argc, char* argv[])
 
     if (strcmp(argv[2],"-r") != 0)
     {
-        printf("> Partition 2\n");
+
         source_path = argv[2];        
         char* filename = GetFileName(source_path);
 
@@ -410,11 +403,7 @@ int main(int argc, char* argv[])
 
     else if (strcmp(argv[2],"-r") == 0)
     {
-        printf("> Partition 3\n");
-
         int forkNum = hasChunks ? number_of_files : number_of_files - 9;
-
-        printf("> FORKNUM: %d\n", forkNum);
 
         pid_t pid[forkNum];
         for (int i = 0 ; i < forkNum ; i++)
@@ -428,8 +417,8 @@ int main(int argc, char* argv[])
             else if (pid[i] == 0)
             {
                 source_path = argv[3 + i];
-                printf("> pid: %p > src: %s\n", &pid[i], source_path);
                 char* filename = GetFileName(source_path);
+
                 FileSplitter(source_path, chunks, filename);
                 send_file(sockfd, source_path, chunks);
                 
@@ -444,7 +433,6 @@ int main(int argc, char* argv[])
                 
                 if ( WIFEXITED(status) && i == 0 && pid[i] > 0)
                 {
-                    printf("> in GodFather!\n");
                     printf("[+]File data sent successfully.\n");
                     printf("[+]Closing the connection.\n");
                     close(sockfd);
