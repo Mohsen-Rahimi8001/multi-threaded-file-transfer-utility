@@ -27,12 +27,17 @@ typedef struct {
 
 char* GetFileName(char* filepath) {
     char* filename = malloc(sizeof(char) * 100);
-    char* token = strtok(filepath, "/");
+    char* tempfilepath = malloc(sizeof(char) * 1000);
+    strcpy(tempfilepath, filepath);
+
+    char* token = strtok(tempfilepath, "/");
 
     while (token != NULL) {
         strcpy(filename, token);
         token = strtok(NULL, "/");
     }
+
+    free(tempfilepath);
 
     return filename;
 }
@@ -225,6 +230,7 @@ void send_file(int sockfd, char* filepath, int chunks)
         arg->chunk_num = i + 1;
         arg->socketfd = sockfd;
         arg->filename = filename;
+
         if (pthread_create(th+i, NULL, send_chunk, (void*)arg) != 0) {
             perror("[-]Error creating new thread.");
         }
@@ -243,7 +249,7 @@ void send_file(int sockfd, char* filepath, int chunks)
     memset(msg, 0, BUFFER_SIZE);
 
     sprintf(msg, "DONE|%s", filename);
-    printf("sending the done message\n");
+
     if (send(sockfd, msg, BUFFER_SIZE, 0) == -1) {
         fprintf(stderr, "Error sending DONE message to server\n");
         exit(1);
@@ -365,7 +371,7 @@ int main(int argc, char* argv[])
         char command[50];
         sprintf(command, "rm %s*", source_path);
         if (system(command) < 0) {
-            perror("[-]Failed to remove SPEEDTEST chunk files.");
+            perror("[-]Failed to remove SPEEDTEST chunk files");
         }
     }
 
@@ -398,13 +404,10 @@ int main(int argc, char* argv[])
     else if (strcmp(argv[2],"-r") == 0)
     {
         printf("> Partition 3\n");
-        printf("final chunks: %d\n", chunks);
 
         int forkNum = hasChunks ? number_of_files : number_of_files - 9;
 
         printf("> FORKNUM: %d\n", forkNum);
-
-        printf("> forkNum: %d\n", forkNum);
 
         pid_t pid[forkNum];
         for (int i = 0 ; i < forkNum ; i++)

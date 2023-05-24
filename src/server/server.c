@@ -54,7 +54,7 @@ int command_handler(char* string) {
         char filename[100];
         strcpy(filename, token);
 
-        strcat(filename, "_");
+        strcat(filename, "-");
 
         token = strtok(NULL, "|");
 
@@ -62,7 +62,7 @@ int command_handler(char* string) {
 
 		FILE* fp;
         fp = fopen(filename, "ab");
-
+        printf("filename: %s\n", filename);
         if (fp == NULL) {
 			perror("[-]Error opening new file.");
             return SEND_AGAIN;
@@ -79,8 +79,6 @@ int command_handler(char* string) {
 
     } else if (!strcmp(token, "DONE")) {
         token = strtok(NULL, "|");
-
-        system("ls");
 
         if (!merge(token)) {
 		    perror("[-]Error in merging.");
@@ -119,12 +117,11 @@ int merge(char* filepath) {
 	for (int i = 1; i < chunks + 1; ++i) {
 
         char filename[100];
-        sprintf(filename, "%s_%d", filepath, i);
+        sprintf(filename, "%s-%d", filepath, i);
         
 		FILE* chunk_fp = fopen(filename, "rb");
 		if (chunk_fp == NULL) {
-            printf("error in chunk %d\n", i);
-			perror("[-]Error in opening a chunk file.");
+			perror("[-]Error in opening a chunk file");
 			return 0;
 		}
 
@@ -202,7 +199,7 @@ int main() {
             res = command_handler(buffer);
 
             if (res == DONE) {
-                printf("got the done message.\n");
+                printf("Got the done message.\n");
                 filecount--;
             } else if (res == SEND_AGAIN) {
             }
