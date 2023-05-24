@@ -43,7 +43,14 @@ int command_handler(char* string) {
     char* content = string + HEADER_SIZE;
 
     char* token = strtok(string, "|");
-
+    
+    if (strlen(command) == 0 ) {
+        printf("here is the problem\n");
+        return SEND_AGAIN;
+    }
+    
+    printf("command: %s\n", command);
+ 
     if (!strcmp(command, "FILECOUNT")) {
         filecount = atoi(content);
         printf("Number of files is: %d\n", filecount);
@@ -76,10 +83,12 @@ int command_handler(char* string) {
 		fwrite(content, 1, LEN - HEADER_SIZE, fp);
 
         fclose(fp);
+        printf("wrote a chunk\n");
 
     } else if (!strcmp(token, "DONE")) {
         token = strtok(NULL, "|");
-
+        system("ls");
+        printf("merging...\n");
         if (!merge(token)) {
 		    perror("[-]Error in merging.");
             return SEND_AGAIN;
@@ -150,7 +159,7 @@ int merge(char* filepath) {
 
 int main() {
     char* ip = "127.0.0.1";
-    int port = 10087;
+    int port = 4003;
 
     int sockfd, client_sock;
     struct sockaddr_in server_addr, client_addr;
@@ -196,12 +205,22 @@ int main() {
                 read_size += read(client_sock, buffer + read_size, SIZE - read_size);
             }
 
+            printf("read %ld bytes\n", read_size);
             res = command_handler(buffer);
 
             if (res == DONE) {
                 printf("Got the done message.\n");
                 filecount--;
-            } else if (res == SEND_AGAIN) {
+            } else if (res == SEND_AGAIN) {                
+                if (send(client_sock, "SEND_AGAIN", SIZE, 0) == -1) {
+                    perror("[-]Error in sending the number of chunks.");
+                    exit(1);
+                }
+            } else if (res == SUCCESS) {
+                if (send(client_sock, "SUCCESS", SIZE, 0) == -1) {
+                    perror("[-]Error in sending the number of chunks.");
+                    exit(1);
+                }
             }
 
             memset(buffer, 0, SIZE);

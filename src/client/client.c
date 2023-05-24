@@ -16,8 +16,9 @@
 #define HEADER_SIZE 124
 #define CONTENT_SIZE 900
 #define FILE_NAME_LEN 50
-#define PORT 10087
+#define PORT 4003
 
+pthread_mutex_t mutex_send;
 
 typedef struct {
     int chunk_num;
@@ -62,7 +63,7 @@ void FileSplitter(char* filePath, int partitions, char* filename)
         exit(1);
     }
     unsigned long int file_size = FindSize(filePath);
-    unsigned long int CHUNK_SIZE = (file_size / partitions);
+    unsigned long int CHUNK_SIZE = (file_size / partitions) + 1;
     int BUF_SIZE = CHUNK_SIZE > 2048 ? 1024 : CHUNK_SIZE;
 
     for (int i = 1; i < partitions + 1; ++i) {   
@@ -78,7 +79,8 @@ void FileSplitter(char* filePath, int partitions, char* filename)
             exit(1);
         }
         
-        long int threashold = CHUNK_SIZE * i + 1;
+        long int threashold = CHUNK_SIZE * i;
+
         size_t readBytes;
         
         while (ftell(input_file) < threashold &&
@@ -89,31 +91,6 @@ void FileSplitter(char* filePath, int partitions, char* filename)
         fclose(output_file);
     }
     fclose(input_file); 
-}
-
-
-int log2ME(unsigned int x) {
-    if (x == 0)
-        return -1; // Handle the case of x = 0 or negative numbers (error condition)
-
-    int result = -1;
-    while (x != 0) {
-        x >>= 1;
-        result++;
-    }
-    return result;
-}
-
-
-int logarithm(int num) {
-    double x = (double) num;
-    double result = log2ME(x);
-
-    if (result > (int) result){
-        return(result+1);
-    }
-
-    return ((int) result);
 }
 
 
@@ -173,6 +150,8 @@ void *send_chunk(void *arg) {
         sprintf(num, "WRITE|%s|%d|%ld", args.filename, args.chunk_num, toSendLength);
         
         char* toSend = (char*)malloc(toSendLength + 1);
+        
+        printf("this is the header: %s\n", num);
 
         memcpy(toSend, num, HEADER_SIZE);
         
@@ -180,9 +159,36 @@ void *send_chunk(void *arg) {
         
         toSend[toSendLength] = '\0';
 
+        pthread_mutex_lock(&mutex_send);
+        
         if (send(args.socketfd, toSend, BUFFER_SIZE, 0) == -1) {
             perror("[-]Error in sending file.");
         }
+
+        size_t read_bytes;
+        char response[BUFFER_SIZE];
+        if ((read_bytes=read(args.socketfd, response, BUFFER_SIZE)) > 0) {
+            while (read_bytes < 1024) {
+                read_bytes += read(args.socketfd, response + read_bytes, BUFFER_SIZE - read_bytes);
+            }
+
+            if (!strcmp(response, "SEND_AGAIN")) {
+                long currentPosition = ftell(fp);
+                
+                while (currentPosition == -1) {
+                    printf("Failed to get the current position.\n");
+                    long currentPosition = ftell(fp);
+                }
+
+                long newPosition = currentPosition - CONTENT_SIZE;
+
+                while (fseek(fp, newPosition, SEEK_SET) != 0) {
+                    printf("Failed to set the new position.\n");
+                }
+            }
+        }
+
+        pthread_mutex_unlock(&mutex_send);
 
         free(toSend);
         memset(data, 0, CONTENT_SIZE);
@@ -230,7 +236,7 @@ void send_file(int sockfd, char* filepath, int chunks)
         arg->chunk_num = i + 1;
         arg->socketfd = sockfd;
         arg->filename = filename;
-
+        printf("The chunk send for %s_%d has started.\n", filename, i);
         if (pthread_create(th+i, NULL, send_chunk, (void*)arg) != 0) {
             perror("[-]Error creating new thread.");
         }
@@ -274,6 +280,7 @@ int send_file_count(int sockfd, int filecount) {
 
 int main(int argc, char* argv[]) 
 {
+    pthread_mutex_init(&mutex_send, NULL);
     printf("> argc: %d\n", argc);
     // command:
     // ./main 127.0.0.1 -r pat patt pattt -c 10
@@ -453,6 +460,8 @@ int main(int argc, char* argv[])
         printf("[-]Error in command inputs.\n");
         return 1;
     }
+
+    pthread_mutex_destroy(&mutex_send);
 
     return 0;
 }
