@@ -154,8 +154,19 @@ int merge(char* filepath) {
 	return 1;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     char* ip = "127.0.0.1";
+
+    if (argc == 2 && !strcmp(argv[1], "-h")) {
+        printf("USER MANUAL FOR SERVER\n########################\n\n-h\t-->\thelp page\n-a[IP]\t-->\tset the IP address, otherwise use loopback IP addr (127.0.0.1)\n");
+        exit(0);
+    } else if (argc < 2) {
+        printf("[!]Set IP to loopback (127.0.0.1)\n");    
+    } else {
+        ip = argv[1];
+        printf("[!]Set IP to (%s)\n", ip);
+    }
+
     int port = 4003;
 
     int sockfd, client_sock;

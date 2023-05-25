@@ -59,6 +59,7 @@ void FileSplitter(char* filePath, int partitions, char* filename)
 {
     FILE* input_file = fopen(filePath, "rb"); 
     if (input_file == NULL) {
+        printf("the filename is: %s\n", filePath);
         printf("Error opening input file.\n");
         exit(1);
     }
@@ -335,7 +336,7 @@ int main(int argc, char* argv[])
     
     int number_of_files = 0;
     if (!hasChunks) number_of_files += 9;
-    if (strcmp(argv[2],"-r") != 0 || strcmp(argv[2],"--recursive") != 0) number_of_files++;
+    if (strcmp(argv[2],"-r") != 0 && strcmp(argv[2],"--recursive") != 0) number_of_files++;
     else number_of_files += hasChunks ? argc - 5 : argc - 3;
 
     send_file_count(sockfd, number_of_files);
@@ -376,14 +377,19 @@ int main(int argc, char* argv[])
         printf("Efficient chunks: %d\n", chunks);
 
         char command[50];
-        sprintf(command, "rm %s*", source_path);
+        sprintf(command, "rm %s_*", source_path);
         if (system(command) < 0) {
             perror("[-]Failed to remove SPEEDTEST chunk files");
+        }
+
+        sprintf(command, "rm %s", source_path);
+        if (system(command) < 0) {
+            perror("[-]Failed to remove SPEEDTEST");
         }
     }
 
 
-    if (strcmp(argv[2],"-r") != 0 || strcmp(argv[2],"--recursive") != 0)
+    if (strcmp(argv[2],"-r") != 0 && strcmp(argv[2],"--recursive") != 0)
     {
 
         source_path = argv[2];        
